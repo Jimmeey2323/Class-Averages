@@ -33,6 +33,12 @@
 <body>
     <h1>Data Table</h1>
     <form id="dataForm">
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required>
+        <br><br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required>
+        <br><br>
         <label for="center">Center:</label>
         <select id="center" name="center">
             <option value="All Centers">All Centers</option>
@@ -86,10 +92,6 @@
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
     <script>
-        const loginUrl = 'https://api.momence.com/auth/login';
-        const email = 'jimmeey@physique57india.com';
-        const password = 'Jimmeey@123';
-
         $(document).ready(function() {
             $('#dataTable').DataTable();
 
@@ -97,15 +99,18 @@
                 event.preventDefault();
                 $('#loader').show();
                 $('#error').text('');
+                const email = $('#email').val();
+                const password = $('#password').val();
                 const center = $('#center').val();
                 const startDate = $('#startDate').val();
                 const endDate = $('#endDate').val();
 
-                fetchData(center, startDate, endDate);
+                fetchData(email, password, center, startDate, endDate);
             });
         });
 
-        async function authenticate() {
+        async function authenticate(email, password) {
+            const loginUrl = 'https://api.momence.com/auth/login';
             const loginPayload = {
                 email: email,
                 password: password,
@@ -121,6 +126,10 @@
                     body: JSON.stringify(loginPayload),
                 });
 
+                if (!response.ok) {
+                    throw new Error('Authentication failed');
+                }
+
                 const data = await response.json();
                 const cookie = response.headers.get('Set-Cookie');
                 return cookie ? cookie.split(';')[0] : null;
@@ -131,8 +140,8 @@
             }
         }
 
-        async function fetchData(center, startDate, endDate) {
-            const cookie = await authenticate();
+        async function fetchData(email, password, center, startDate, endDate) {
+            const cookie = await authenticate(email, password);
             if (!cookie) {
                 $('#error').text('Failed to authenticate');
                 $('#loader').hide();
