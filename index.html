@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Table</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/css/jquery.dataTables.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .loader {
+            border: 16px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 16px solid #3498db;
+            width: 120px;
+            height: 120px;
+            animation: spin 2s linear infinite;
+            display: none;
+            margin: auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Data Table</h1>
+    <form id="dataForm">
+        <label for="center">Center:</label>
+        <select id="center" name="center">
+            <option value="All Centers">All Centers</option>
+            <option value="Supreme HQ, Bandra">Supreme HQ, Bandra</option>
+            <option value="Kwality House, Kemps Corner">Kwality House, Kemps Corner</option>
+            <option value="Kenkere House, Bengaluru">Kenkere House, Bengaluru</option>
+        </select>
+        <br><br>
+        <label for="startDate">Start Date:</label>
+        <input type="date" id="startDate" name="startDate">
+        <br><br>
+        <label for="endDate">End Date:</label>
+        <input type="date" id="endDate" name="endDate">
+        <br><br>
+        <button type="submit">Fetch Data</button>
+    </form>
+    <div class="loader" id="loader"></div>
+    <div class="error" id="error"></div>
+    <table id="dataTable" class="display" style="width:100%">
+        <thead>
+            <tr>
+                <th>id</th>
+                <th>genesisId</th>
+                <th>sessionRecurringSeriesId</th>
+                <th>sessionName</th>
+                <th>date</th>
+                <th>time</th>
+                <th>locationName</th>
+                <th>capacity</th>
+                <th>bookingsCount</th>
+                <th>visitsCount</th>
+                <th>dropIns</th>
+                <th>packs</th>
+                <th>subscriptions</th>
+                <th>free</th>
+                <th>cancellations</th>
+                <th>lateCancellations</th>
+                <th>noShows</th>
+                <th>averageBookingValue</th>
+                <th>averageVisits</th>
+                <th>totalOccurrences</th>
+                <th>teacherName</th>
+                <th>originalTeacherName</th>
+                <th>Month</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+    <script>
+        const loginUrl = 'https://api.momence.com/auth/login';
+        const email = 'jimmeey@physique57india.com';
+        const password = 'Jimmeey@123';
+
+        $(document).ready(function() {
+            $('#dataTable').DataTable();
+
+            $('#dataForm').on('submit', function(event) {
+                event.preventDefault();
+                $('#loader').show();
+                $('#error').text('');
+                const center = $('#center').val();
+                const startDate = $('#startDate').val();
+                const endDate = $('#endDate').val();
+
+                fetchData(center, startDate, endDate);
+            });
+        });
+
+        async function authenticate() {
+            const loginPayload = {
+                email: email,
+                password: password,
+            };
+
+            try {
+                const response = await fetch(loginUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify(loginPayload),
+                });
+
+                const data = await response.json();
+                const cookie = response.headers.get('Set-Cookie');
+                return cookie ? cookie.split(';')[0] : null;
+            } catch (error) {
+                $('#error').text('Error during authentication: ' + error.message);
+                $('#loader').hide();
+                return null;
+            }
+        }
+
+        async function fetchData(center, startDate, endDate) {
+            const cookie = await authenticate();
+            if (!cookie) {
+                $('#error').text('Failed to authenticate');
+                $('#loader').hide();
+                return;
+            }
+
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Cookie': cookie,
+            };
+
+            const params = {
+                startDate: new Date(startDate).toISOString(),
+                endDate: new Date(endDate).toISOString(),
+                day: new Date().toISOString().split('T')[0] + "T00:00:00.000Z"
+            };
+
+            const locations = {
+                'Supreme HQ, Bandra': 29821,
+                'Kwality House, Kemps Corner': 9030,
+                'Kenkere House, Bengaluru': 22116
+            };
+
+            let urls = [];
+
+            if (center === 'All Centers') {
+                const hostIds = [13752, 33905];
+                hostIds.forEach(hostId => {
+                    const queryString = Object.keys({ ...params, hostId }).map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`).join('&');
+                    urls.push(`https://api.momence.com/host/${hostId}/reports/recurring-event-attendance?${queryString}`);
+                });
+            } else {
+                if (center in locations) {
+                    params.locationId = locations[center];
+                    params.hostId = (center === 'Kenkere House, Bengaluru') ? 33905 : 13752;
+                } else {
+                    $('#error').text('Invalid or missing location value');
+                    $('#loader').hide();
+                    return;
+                }
+
+                const queryString = Object.keys(params).map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`).join('&');
+                urls.push(`https://api.momence.com/host/${params.hostId}/reports/recurring-event-attendance?${queryString}`);
+            }
+
+            let allData = [];
+            for (const url of urls) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: headers,
+                    });
+                    const data = await response.json();
+                    allData = allData.concat(data.items || data.reportData.items || []);
+                } catch (error) {
+                    $('#error').text('Error fetching data: ' + error.message);
+                }
+            }
+
+            populateTable(allData);
+            $('#loader').hide();
+        }
+
+        function populateTable(data) {
+            const table = $('#dataTable').DataTable();
+            table.clear();
+
+            data.forEach(item => {
+                const { id, genesisId, sessionRecurringSeriesId, sessionName, startsAt, locationName, capacity, bookingsCount, visitsCount, dropIns, packs, subscriptions, free, cancellations, lateCancellations, noShows, averageBookingValue, averageVisits, totalOccurrences, teacherName, originalTeacherName } = item;
+
+                if (totalOccurrences >= 3) {
+                    const [datePart, timePart] = convertToIST(startsAt);
+                    const monthName = new Date(startsAt).toLocaleString('default', { month: 'short' });
+                    table.row.add([id, genesisId, sessionRecurringSeriesId, sessionName, datePart, timePart, locationName, capacity, bookingsCount, visitsCount, dropIns, packs, subscriptions, free, cancellations, lateCancellations, noShows, averageBookingValue, averageVisits, totalOccurrences, teacherName, originalTeacherName, monthName]);
+                }
+            });
+
+            table.draw();
+        }
+
+        function convertToIST(dateString) {
+            if (!dateString) return ['-', '-'];
+            const date = new Date(dateString);
+            const istDate = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
+            const istTime = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
+            return [istDate, istTime];
+        }
+    </script>
+</body>
+</html>
