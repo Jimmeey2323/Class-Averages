@@ -127,25 +127,29 @@
       });
     }
 
-    function authenticate() {
-  return new Promise((resolve, reject) => {
-    fetch(loginUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    })
-    .then(response => {
-      const cookie = response.headers.get('set-cookie');
-      if (cookie) {
-        resolve(cookie);
-      } else {
-        reject(new Error('Authentication failed'));
-      }
-    })
-    .catch(err => reject(err));
+    function authenticate(loginUrl, email, password) {
+  const loginHeaders = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+
+  const loginPayload = {
+    email: email,
+    password: password,
+  };
+
+  return fetch(loginUrl, {
+    method: 'POST',
+    headers: loginHeaders,
+    body: JSON.stringify(loginPayload),
+  })
+  .then(response => {
+    const cookie = response.headers.get('Set-Cookie');
+    return cookie ? cookie.split(';')[0] : null; // Extract session cookie
+  })
+  .catch(error => {
+    console.error('Error during authentication:', error.message);
+    return null;
   });
 }
 
