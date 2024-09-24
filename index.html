@@ -113,7 +113,7 @@
       showError('');
       showLoader(true);
 
-      authenticate().then(cookie => {
+      authenticate(loginUrl, email, password).then(cookie => {
         if (!cookie) {
           showError('Failed to authenticate.');
           showLoader(false);
