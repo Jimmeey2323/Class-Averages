@@ -137,8 +137,12 @@
           },
           body: JSON.stringify({ email, password }),
         })
-        .then(response => response.headers.get('set-cookie'))
-        .then(cookie => resolve(cookie ? cookie.split(';')[0] : null))
+        .then(response => {
+          // Fetch headers to extract cookies
+          const setCookieHeader = response.headers.get('set-cookie');
+          const cookie = setCookieHeader ? setCookieHeader.split(';')[0] : null;
+          resolve(cookie);
+        })
         .catch(err => reject(err));
       });
     }
@@ -153,7 +157,6 @@
       const params = {
         startDate: new Date(startDate).toISOString(),
         endDate: new Date(endDate).toISOString(),
-        day: new Date().toISOString().split('T')[0] + "T00:00:00.000Z"
       };
 
       const locations = {
@@ -216,4 +219,3 @@
 
 </body>
 </html>
-
