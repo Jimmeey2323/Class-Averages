@@ -128,24 +128,26 @@
     }
 
     function authenticate() {
-      return new Promise((resolve, reject) => {
-        fetch(loginUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: JSON.stringify({ email, password }),
-        })
-        .then(response => {
-          // Fetch headers to extract cookies
-          const setCookieHeader = response.headers.get('set-cookie');
-          const cookie = setCookieHeader ? setCookieHeader.split(';')[0] : null;
-          resolve(cookie);
-        })
-        .catch(err => reject(err));
-      });
-    }
+  return new Promise((resolve, reject) => {
+    fetch(loginUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    })
+    .then(response => {
+      const cookie = response.headers.get('set-cookie');
+      if (cookie) {
+        resolve(cookie);
+      } else {
+        reject(new Error('Authentication failed'));
+      }
+    })
+    .catch(err => reject(err));
+  });
+}
 
     function fetchRData(center, startDate, endDate, cookie) {
       const headers = {
