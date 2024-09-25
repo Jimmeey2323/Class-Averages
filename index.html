@@ -3,183 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customer Data</title>
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.12.1/css/jquery.dataTables.min.css">
+    <title>Customer Data Table</title>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
         .spinner {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 1000;
-}
-
-.spinner-border {
-    border: 4px solid rgba(0, 0, 0, 0.1);
-    border-top: 4px solid #3498db;
-    border-radius: 50%;
-    width: 60px;
-    height: 60px;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-    100% {
-        transform: rotate(360deg);
-    }
-}
+            display: none;
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3498db;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+            margin: 50px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            font-size: 18px;
+            text-align: left;
+            background-color: #fff;
+        }
+        th, td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #3498db;
+            color: #fff;
+        }
+        tbody tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
     </style>
 </head>
 <body>
-    <div class="spinner" id="spinner">
-        <div class="spinner-border" role="status">
-            <span class="sr-only">Loading...</span>
-        </div>
+    <div class="container">
+        <h1>Customer Data Table</h1>
+        <div class="spinner" id="spinner"></div>
+        <table id="dataTable">
+            <thead>
+                <tr>
+                    <th>Member ID</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Email</th>
+                    <th>Phone Number</th>
+                    <th>Last Seen</th>
+                    <th>Tags</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data will be injected here -->
+            </tbody>
+        </table>
     </div>
-    <table id="customer-data" class="display" style="width:100%">
-        <thead>
-            <tr>
-                <th>Member ID</th>
-                <th>Email</th>
-                <th>First Name</th>
-                <th>Last Name</th>
-                <th>Phone Number</th>
-                <th>Last Seen</th>
-                <th>First Seen</th>
-            </tr>
-        </thead>
-        <tbody id="customer-data-body">
-        </tbody>
-    </table>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
     <script>
-        // Set API URLs and credentials
-const loginUrl = 'https://api.momence.com/auth/login';
-const apiUrl = 'https://api.momence.com/host/13752/customers';
-const email = 'jimmeey@physique57india.com';
-const password = 'Jimmeey@123';
+        document.addEventListener('DOMContentLoaded', () => {
+            const apiURL = 'https://api.momence.com/host/13752/customers?query=&page=0&pageSize=200';
+            const tableBody = document.querySelector('#dataTable tbody');
+            const spinner = document.getElementById('spinner');
 
-// Set pagination variables
-let currentPage = 0;
-let pageSize = 200;
-let totalCount = 0;
-
-// Function to authenticate and get session cookie
-async function authenticate() {
-    try {
-        const response = await fetch(loginUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                email,
-                password
-            })
-        });
-
-        if (response.ok) {
-            const cookie = response.headers.get('set-cookie');
-            return cookie;
-        } else {
-            throw new Error('Authentication failed');
-        }
-    } catch (error) {
-        console.error('Error authenticating:', error);
-    }
-}
-
-// Function to fetch customer data
-async function fetchCustomerData(cookie, page) {
-    try {
-        const response = await fetch(`${apiUrl}?query=&page=${page}&pageSize=${pageSize}`, {
-            method: 'GET',
-            headers: {
-                'Cookie': cookie
+            // Show spinner while fetching data
+            function showSpinner() {
+                spinner.style.display = 'block';
             }
-        });
 
-        if (response.ok) {
-            const data = await response.json();
-            return data;
-        } else {
-            console.error('API Error:', response.status, response.statusText);
-            throw new Error('Failed to fetch customer data');
-        }
-    } catch (error) {
-        console.error('Error fetching customer data:', error);
-        return null; // Return null if the API request fails
-    }
-}
-
-// Function to display customer data
-function displayCustomerData(data) {
-    const customerDataBody = document.getElementById('customer-data-body');
-    customerDataBody.innerHTML = '';
-
-    data.payload.forEach(customer => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${customer.memberId}</td>
-            <td>${customer.email}</td>
-            <td>${customer.firstName}</td>
-            <td>${customer.lastName}</td>
-            <td>${customer.phoneNumber}</td>
-            <td>${customer.lastSeen}</td>
-            <td>${customer.firstSeen}</td>
-        `;
-        customerDataBody.appendChild(row);
-    });
-}
-
-// Function to handle pagination
-async function handlePagination(cookie) {
-    try {
-        const data = await fetchCustomerData(cookie, currentPage);
-
-        if (data !== null) {
-            if (data.pagination) {
-                totalCount = data.pagination.totalCount;
-
-                displayCustomerData(data);
-
-                if (currentPage * pageSize < totalCount) {
-                    currentPage++;
-                    await handlePagination(cookie);
-                } else {
-                    $('#spinner').hide();
-                    $('#customer-data').DataTable();
-                }
-            } else {
-                console.error('Invalid response from API:', data);
-                await retryHandlePagination(cookie);
+            // Hide spinner when data is loaded
+            function hideSpinner() {
+                spinner.style.display = 'none';
             }
-        } else {
-            console.error('No data received from API');
-            await retryHandlePagination(cookie);
-        }
-    } catch (error) {
-        console.error('Error handling pagination:', error);
-        await retryHandlePagination(cookie);
-    }
-}
 
-// Authenticate and fetch customer data
-async function init() {
-    try {
-        const cookie = await authenticate();
-        await handlePagination(cookie);
-    } catch (error) {
-        console.error('Error initializing:', error);
-    }
-}
+            // Fetch data from API and populate table
+            async function fetchData() {
+                showSpinner();
+                try {
+                    const response = JSON.parse(yourResponseData);
 
-init();
+                    // Check if payload exists and is an array
+                    if (Array.isArray(response.payload)) {
+                        response.payload.forEach(customer => {
+                        // Safely access tags
+                        const customerTags = customer.tags?.customerTags || [];
+                        
+                        // Process each tag safely
+                        customerTags.forEach(tag => {
+                            // Example: Display tag name if it exists
+                            if (tag.name) {
+                            console.log(`Tag Name: ${tag.name}`);
+                            }
+                        });
+                        });
+                    } else {
+                        console.error("Payload is missing or not an array");
+                    }
+                    } catch (error) {
+                    console.error("Error parsing JSON or accessing data: ", error);
+                    }
+
+
+            // Populate the table with data
+            function populateTable(customers) {
+                customers.forEach(customer => {
+                    const row = document.createElement('tr');
+
+                    const memberId = `<td>${customer.memberId}</td>`;
+                    const firstName = `<td>${customer.firstName}</td>`;
+                    const lastName = `<td>${customer.lastName}</td>`;
+                    const email = `<td>${customer.email}</td>`;
+                    const phoneNumber = `<td>${customer.phoneNumber}</td>`;
+                    const lastSeen = `<td>${new Date(customer.lastSeen).toLocaleDateString()}</td>`;
+
+                    // Extract and format tags
+                    const tags = customer.tags.customerTags
+                        .map(tag => tag.badgeLabel || tag.name)
+                        .join(', ') || 'No tags';
+
+                    const tagsCell = `<td>${tags}</td>`;
+
+                    row.innerHTML = memberId + firstName + lastName + email + phoneNumber + lastSeen + tagsCell;
+                    tableBody.appendChild(row);
+                });
+            }
+
+            // Fetch the data when the page loads
+            fetchData();
+        });
     </script>
 </body>
 </html>
