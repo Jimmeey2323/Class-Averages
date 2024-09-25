@@ -3,115 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customer Data Table</title>
-    <link href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css" rel="stylesheet" />
+    <title>Customer Data</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.12.1/css/jquery.dataTables.min.css">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            background-color: #f4f4f4;
-        }
-        h1 {
-            text-align: center;
-        }
-        #spinner {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 24px;
-        }
-        table {
-            width: 100%;
-            margin-top: 20px;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
+        .spinner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+}
+
+.spinner-border {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
     </style>
 </head>
 <body>
-    <h1>Customer Data</h1>
-
-    <div id="spinner">Loading...</div>
-    
-    <table id="customerTable" class="display">
+    <div class="spinner" id="spinner">
+        <div class="spinner-border" role="status">
+            <span class="sr-only">Loading...</span>
+        </div>
+    </div>
+    <table id="customer-data" class="display" style="width:100%">
         <thead>
             <tr>
                 <th>Member ID</th>
+                <th>Email</th>
                 <th>First Name</th>
                 <th>Last Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Tags</th>
-                <th>First Seen</th>
+                <th>Phone Number</th>
                 <th>Last Seen</th>
+                <th>First Seen</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="customer-data-body">
         </tbody>
     </table>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-
+    <script src="https://cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            const spinner = document.getElementById("spinner");
-            const tableBody = document.querySelector("#customerTable tbody");
+        // Set API URLs and credentials
+const loginUrl = 'https://api.momence.com/auth/login';
+const apiUrl = 'https://api.momence.com/host/13752/customers';
+const email = 'jimmeey@physique57india.com';
+const password = 'Jimmeey@123';
 
-            spinner.style.display = "block";
+// Set pagination variables
+let currentPage = 0;
+let pageSize = 200;
+let totalCount = 0;
 
-            fetch('https://api.momence.com/host/13752/customers?query=&page=0&pageSize=200')
-                .then(response => response.json())
-                .then(data => {
-                    const customers = data.payload;
-
-                    customers.forEach(customer => {
-                        const row = document.createElement("tr");
-
-                        const memberId = customer.memberId || '-';
-                        const firstName = customer.firstName || '-';
-                        const lastName = customer.lastName || '-';
-                        const email = customer.email || '-';
-                        const phoneNumber = customer.phoneNumber || '-';
-                        const firstSeen = new Date(customer.firstSeen).toLocaleDateString() || '-';
-                        const lastSeen = new Date(customer.lastSeen).toLocaleDateString() || '-';
-
-                        const tags = customer.tags.customerTags
-                            .map(tag => tag.name)
-                            .join(", ") || '-';
-
-                        row.innerHTML = `
-                            <td>${memberId}</td>
-                            <td>${firstName}</td>
-                            <td>${lastName}</td>
-                            <td>${email}</td>
-                            <td>${phoneNumber}</td>
-                            <td>${tags}</td>
-                            <td>${firstSeen}</td>
-                            <td>${lastSeen}</td>
-                        `;
-
-                        tableBody.appendChild(row);
-                    });
-
-                    // Initialize DataTable
-                    $('#customerTable').DataTable();
-                    spinner.style.display = "none";
-                })
-                .catch(error => {
-                    console.error("Error fetching data:", error);
-                    spinner.style.display = "none";
-                });
+// Function to authenticate and get session cookie
+async function authenticate() {
+    try {
+        const response = await fetch(loginUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email,
+                password
+            })
         });
+
+        if (response.ok) {
+            const cookie = response.headers.get('set-cookie');
+            return cookie;
+        } else {
+            throw new Error('Authentication failed');
+        }
+    } catch (error) {
+        console.error('Error authenticating:', error);
+    }
+}
+
+// Function to fetch customer data
+async function fetchCustomerData(cookie, page) {
+    try {
+        const response = await fetch(`${apiUrl}?query=&page=${page}&pageSize=${pageSize}`, {
+            method: 'GET',
+            headers: {
+                'Cookie': cookie
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            return data;
+        } else {
+            throw new Error('Failed to fetch customer data');
+        }
+    } catch (error) {
+        console.error('Error fetching customer data:', error);
+    }
+}
+
+// Function to display customer data
+function displayCustomerData(data) {
+    const customerDataBody = document.getElementById('customer-data-body');
+    customerDataBody.innerHTML = '';
+
+    data.payload.forEach(customer => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${customer.memberId}</td>
+            <td>${customer.email}</td>
+            <td>${customer.firstName}</td>
+            <td>${customer.lastName}</td>
+            <td>${customer.phoneNumber}</td>
+            <td>${customer.lastSeen}</td>
+            <td>${customer.firstSeen}</td>
+        `;
+        customerDataBody.appendChild(row);
+    });
+}
+
+// Function to handle pagination
+async function handlePagination(cookie) {
+    try {
+        const data = await fetchCustomerData(cookie, currentPage);
+        totalCount = data.pagination.totalCount;
+
+        displayCustomerData(data);
+
+        if (currentPage * pageSize < totalCount) {
+            currentPage++;
+            await handlePagination(cookie);
+        } else {
+            $('#spinner').hide();
+            $('#customer-data').DataTable();
+        }
+    } catch (error) {
+        console.error('Error handling pagination:', error);
+    }
+}
+
+// Authenticate and fetch customer data
+async function init() {
+    try {
+        const cookie = await authenticate();
+        await handlePagination(cookie);
+    } catch (error) {
+        console.error('Error initializing:', error);
+    }
+}
+
+init();
     </script>
 </body>
 </html>
