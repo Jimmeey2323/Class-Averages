@@ -108,10 +108,12 @@ async function fetchCustomerData(cookie, page) {
             const data = await response.json();
             return data;
         } else {
+            console.error('API Error:', response.status, response.statusText);
             throw new Error('Failed to fetch customer data');
         }
     } catch (error) {
         console.error('Error fetching customer data:', error);
+        return null; // Return null if the API request fails
     }
 }
 
@@ -139,19 +141,31 @@ function displayCustomerData(data) {
 async function handlePagination(cookie) {
     try {
         const data = await fetchCustomerData(cookie, currentPage);
-        totalCount = data.pagination.totalCount;
 
-        displayCustomerData(data);
+        if (data !== null) {
+            if (data.pagination) {
+                totalCount = data.pagination.totalCount;
 
-        if (currentPage * pageSize < totalCount) {
-            currentPage++;
-            await handlePagination(cookie);
+                displayCustomerData(data);
+
+                if (currentPage * pageSize < totalCount) {
+                    currentPage++;
+                    await handlePagination(cookie);
+                } else {
+                    $('#spinner').hide();
+                    $('#customer-data').DataTable();
+                }
+            } else {
+                console.error('Invalid response from API:', data);
+                await retryHandlePagination(cookie);
+            }
         } else {
-            $('#spinner').hide();
-            $('#customer-data').DataTable();
+            console.error('No data received from API');
+            await retryHandlePagination(cookie);
         }
     } catch (error) {
         console.error('Error handling pagination:', error);
+        await retryHandlePagination(cookie);
     }
 }
 
